@@ -22,10 +22,21 @@ for the full audit and live-test writeup of what changed and why.
 - Sync memos filtered by tag
 - Includes attachments (rendered as links)
 
+## Installation
+
+Not yet in the Logseq marketplace. To install manually:
+
+1. Download `logseq-memos-sync-db-<version>.zip` from the
+   [Releases](https://github.com/yanfosec/logseq-memos-sync-db/releases)
+   page and unzip it.
+2. In Logseq, enable Developer mode (Settings → Advanced).
+3. Go to Settings → Plugins → **Load unpacked plugin** and select the
+   unzipped folder.
+
 ## How to use
 
 1. Open the plugin settings and set the Memos server URL (full URL
-   including `https://`) and API token.
+   including `https://`, e.g. `https://memos.example.com`) and API token.
 
 ### Manually Sync
 
@@ -44,6 +55,16 @@ for the full audit and live-test writeup of what changed and why.
   re-sync — we don't want to clobber your edits.
 - Images and files are linked, not downloaded/embedded, between Memos and
   Logseq.
+
+> [!WARNING]
+> **"Full Sync" can duplicate memos that were synced by the 1.x plugin.**
+> Duplicate detection relies on an index this version maintains. Memos
+> already in your graph from an older version aren't in that index, and the
+> fallback lookup (a `logseq.DB.q` property query) does not reliably match
+> blocks on DB graphs — this was confirmed against a live 2.0.1 graph, see
+> [docs/UPGRADE_PLAN.md](docs/UPGRADE_PLAN.md) §9. Memos synced by *this*
+> version are tracked correctly and are unaffected. If you're migrating,
+> avoid Full Sync, or expect to clean up duplicates once.
 
 ## Screenshots
 
