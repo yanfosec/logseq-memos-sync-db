@@ -1,11 +1,15 @@
 import "@logseq/libs";
 
-import { BlockEntity, IHookEvent } from "@logseq/libs/dist/LSPlugin";
+import type { BlockEntity } from "@logseq/libs/dist/LSPlugin";
 import settingSchema, { Visibility } from "./settings";
 import MemosSync from "./memos";
 
 function main() {
   console.info("memos-sync: Logseq Memos Plugin Loading!");
+
+  logseq.App.getInfo("supportDb").then((supportDb) => {
+    console.info("memos-sync: graph type - supportDb:", supportDb);
+  });
 
   settingSchema();
 
@@ -19,12 +23,12 @@ function main() {
     }
   );
 
-  logseq.onSettingsChanged((e: IHookEvent) => {
+  logseq.onSettingsChanged(() => {
     memosSync.parseSetting();
   });
 
   const { sendVisibility }: any = logseq.settings;
-  sendVisibility.forEach((visibility: Visibility) => {
+  (sendVisibility || []).forEach((visibility: Visibility) => {
     logseq.Editor.registerSlashCommand(
       `memos: Send in ${visibility}`,
       async () => {

@@ -1,4 +1,4 @@
-import { IBatchBlock } from "@logseq/libs/dist/LSPlugin";
+import type { IBatchBlock } from "@logseq/libs/dist/LSPlugin";
 import { Mode, Visibility } from "../settings";
 import { Memo } from "./type";
 import { format } from "date-fns";
@@ -40,8 +40,8 @@ export const memoContentGenerate = (
       let link;
       if (resource.externalLink) {
         link = resource.externalLink;
-      }else if(memo.visibility.toLowerCase() == Visibility.Public.toLowerCase()){
-        link = `${host}/o/r/${resource.id}`;
+      } else if (memo.visibility.toLowerCase() == Visibility.Public.toLowerCase()) {
+        link = `${host}/file/attachments/${resource.id}/${resource.filename}`;
       }
       children.push({content: `![${resource.filename}](${link})`});
     }

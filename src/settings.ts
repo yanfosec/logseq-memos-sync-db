@@ -33,7 +33,7 @@ export default function settingSchema() {
       key: "host",
       type: "string",
       title: "Open API",
-      description: "example: memos.com:8080",
+      description: "Full URL including scheme, example: https://memos.com:8080",
       default: "",
     },
     {
@@ -46,8 +46,8 @@ export default function settingSchema() {
     {
       key: "openId",
       type: "string",
-      title: "Open Id",
-      description: "Please upgrade memos to v0.15.0 switch to Memos Token. Memos OpenId, you can find this in memos setting.",
+      title: "Open Id (legacy)",
+      description: "Deprecated. Use Token instead — modern Memos servers authenticate via Bearer token, not OpenId.",
       default: "",
     },
     {
@@ -139,7 +139,7 @@ export default function settingSchema() {
       title: "Archive memo after sync",
       description:
         "If this option is on, private memos will be archived after sync to Logseq.",
-      default: "false",
+      default: false,
     },
     {
       key: "includeArchive",
@@ -168,7 +168,14 @@ export default function settingSchema() {
       type: "object",
       title: "Sync Status (Internal Use)",
       description: "Internal sync status tracking - DO NOT MODIFY",
-      default: { lastSyncId: 0 },
+      default: { lastSyncTimestamp: 0 },
+    },
+    {
+      key: "debug",
+      type: "boolean",
+      title: "Debug Logging",
+      description: "Log detailed sync activity to the developer console. Leave off unless troubleshooting.",
+      default: false,
     },
   ]);
 }

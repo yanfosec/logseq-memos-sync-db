@@ -15,7 +15,7 @@ def hello():
 `;
     const memo: Memo = {
       content: codeBody,
-      id: 0,
+      id: "0",
       rowStatus: "NORMAL",
       updatedTs: 0,
       visibility: "PUBLIC",
@@ -35,7 +35,7 @@ def hello():
 
   it("public resources could rending without openId", () => {
     const memo: Memo = {
-      id: 1,
+      id: "1",
       rowStatus: "NORMAL",
       creatorId: 1,
       createdTs: 1690045876,
@@ -48,14 +48,13 @@ def hello():
       creatorUsername: "eindex",
       resourceList: [
         {
-          id: 1,
+          id: "1",
           createdTs: 1690079497,
           updatedTs: 1690079497,
           filename: "memos.png",
           externalLink: "",
           type: "image/png",
           size: 1539508,
-          linkedMemoAmount: 1,
         },
       ],
       relationList: [],
@@ -63,12 +62,14 @@ def hello():
 
     const res = memoContentGenerate(memo, "host", "TODO");
     expect(res[0].children?.length).toBe(1);
-    expect(res[0].children![0].content).toBe("![memos.png](host/o/r/1)");
+    expect(res[0].children![0].content).toBe(
+      "![memos.png](host/file/attachments/1/memos.png)"
+    );
   });
 
   it("private resources have external link should using external link", () => {
     const memo: Memo = {
-      id: 1,
+      id: "1",
       rowStatus: "NORMAL",
       creatorId: 1,
       createdTs: 1690045876,
@@ -81,14 +82,13 @@ def hello():
       creatorUsername: "eindex",
       resourceList: [
         {
-          id: 1,
+          id: "1",
           createdTs: 1690079497,
           updatedTs: 1690079497,
           filename: "memos.png",
           externalLink: "link",
           type: "image/png",
           size: 1539508,
-          linkedMemoAmount: 1,
         },
       ],
       relationList: [],
@@ -101,7 +101,7 @@ def hello():
 
   it("public resources have external link should using external link", () => {
     const memo: Memo = {
-      id: 1,
+      id: "1",
       rowStatus: "NORMAL",
       creatorId: 1,
       createdTs: 1690045876,
@@ -114,14 +114,13 @@ def hello():
       creatorUsername: "eindex",
       resourceList: [
         {
-          id: 1,
+          id: "1",
           createdTs: 1690079497,
           updatedTs: 1690079497,
           filename: "memos.png",
           externalLink: "link",
           type: "image/png",
           size: 1539508,
-          linkedMemoAmount: 1,
         },
       ],
       relationList: [],

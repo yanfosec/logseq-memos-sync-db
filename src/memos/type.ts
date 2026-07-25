@@ -4,17 +4,16 @@ type Base = {
 };
 
 export type Resource = {
-  id: number;
+  id: string;
   filename: string;
   externalLink: string;
   type: string;
   size: number;
-  linkedMemoAmount: number;
 } & Base;
 
 export type Memo = {
   content: string;
-  id: number;
+  id: string;
   rowStatus: string;
   visibility: string;
   displayTs: number;

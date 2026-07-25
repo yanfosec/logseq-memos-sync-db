@@ -1,6 +1,6 @@
 import "@logseq/libs";
-import { BlockEntity, PageEntity } from "@logseq/libs/dist/LSPlugin";
-import { format, max } from "date-fns";
+import type { BlockEntity, PageEntity } from "@logseq/libs/dist/LSPlugin";
+import { format } from "date-fns";
 import { BATCH_SIZE } from "./constants";
 import MemosGeneralClient, { MemosClient } from "./memos/client";
 import { Memo } from "./memos/type";
@@ -14,10 +14,14 @@ import {
   sleep,
   tagFilterList,
   timeSpentByConfig,
-  searchExistsMemo,
+  searchExistsMemoLegacy,
+  loadSyncedMemoIndex,
+  saveSyncedMemoIndex,
+  SyncedMemoIndex,
   getMemoId,
   fetchSyncStatus,
   saveSyncStatus,
+  debugLog,
 } from "./utils";
 
 class MemosSync {
@@ -29,7 +33,7 @@ class MemosSync {
   private backgroundSync: string | undefined;
   private archiveMemoAfterSync: boolean | undefined;
   private inboxName: string | undefined;
-  private timerId: NodeJS.Timer | undefined;
+  private timerId: ReturnType<typeof setInterval> | undefined;
   private tagFilterList: Array<string> | undefined;
   private flat: boolean | undefined;
   private host: string | undefined;
@@ -37,35 +41,52 @@ class MemosSync {
   private token: string | undefined;
 
   constructor() {
+    this.registerProperties();
     this.parseSetting();
+  }
+
+  private registerProperties() {
+    // Best-effort: registers memo-id/memo-visibility as real schema
+    // properties on DB graphs so they're queryable rather than namespaced
+    // under Logseq's internal plugin-property bucket. Safe no-op on older
+    // Logseq/@logseq-libs versions that don't have this API.
+    const editor: any = logseq.Editor;
+    if (typeof editor?.upsertProperty !== "function") {
+      return;
+    }
+    for (const key of ["memo-id", "memo-visibility"]) {
+      Promise.resolve(
+        editor.upsertProperty(key, { type: "default", cardinality: "one", hide: true })
+      ).catch((error: any) => {
+        debugLog(`memos-sync: upsertProperty(${key}) failed, ignoring:`, error);
+      });
+    }
   }
 
   /**
    * syncMemos
    */
   public async syncMemos(mode = "Manual") {
-    console.log("memos-sync: Starting sync process in mode:", mode);
+    debugLog("memos-sync: Starting sync process in mode:", mode);
     const { host, token, openId }: any = logseq.settings;
-    console.log("memos-sync: Settings loaded - host:", host, "hasToken:", !!token, "hasOpenId:", !!openId);
-    
+
     if (!host || (!openId && !token)) {
       console.error("memos-sync: Missing required settings");
       logseq.UI.showMsg("Memos Setting up needed.");
       logseq.showSettingsUI();
       return;
     }
-    
+
     await this.choosingClient();
     if (this.memosClient === undefined || this.memosClient === null) {
       console.error("memos-sync: Failed to initialize Memos client");
       logseq.UI.showMsg("Memos Sync Setup issue", "error");
       return;
     }
-    
-    console.log("memos-sync: Client initialized successfully");
+
     try {
       await this.sync();
-      console.log("memos-sync: Sync completed successfully");
+      debugLog("memos-sync: Sync completed successfully");
       if (mode !== "Background") {
         logseq.UI.showMsg("Memos Sync Success", "success");
       }
@@ -77,87 +98,103 @@ class MemosSync {
     }
   }
 
-  private async lastSyncId(): Promise<number> {
-    return (await fetchSyncStatus()).lastSyncId;
+  private async lastSyncTimestamp(): Promise<number> {
+    return (await fetchSyncStatus()).lastSyncTimestamp;
   }
 
-  private async saveSyncId(memoId: number) {
-    await saveSyncStatus(memoId);
+  private async saveSyncTimestamp(timestamp: number) {
+    await saveSyncStatus(timestamp);
   }
 
-  private async beforeSync() {
+  // Returns the timestamp to resume from, or null if no reset was requested.
+  // logseq.settings does not reliably reflect an updateSettings() write on
+  // the very next read within the same call chain (it round-trips through
+  // the host process), so callers must use this return value directly
+  // rather than re-reading lastSyncTimestamp() afterward.
+  private async beforeSync(): Promise<number | null> {
     if (logseq.settings?.fullSync === "Agree") {
       logseq.updateSettings({ fullSync: "" });
-      await saveSyncStatus(-1);
+      await saveSyncStatus(0);
+      return 0;
     }
+    return null;
   }
 
   private async sync() {
-    console.log("memos-sync: Starting sync process");
-    await this.beforeSync();
+    const resetTimestamp = await this.beforeSync();
 
     if (this.memosClient === undefined || this.memosClient === null) {
       await this.choosingClient();
     }
 
-    let maxMemoId = (await this.lastSyncId()) || -1;
-    console.log("memos-sync: Last sync ID:", maxMemoId);
-    
-    let newMaxMemoId = maxMemoId;
+    const lastTimestamp = resetTimestamp !== null ? resetTimestamp : (await this.lastSyncTimestamp()) || 0;
+    debugLog("memos-sync: Last sync timestamp:", lastTimestamp);
+
+    const syncedIndex = await loadSyncedMemoIndex();
+    let indexDirty = false;
+
+    let newMaxTimestamp = lastTimestamp;
+    let pageToken: string | null = null;
     let end = false;
-    let cousor = 0;
     let totalProcessed = 0;
     let totalInserted = 0;
-    
+
     while (!end) {
-      console.log("memos-sync: Fetching memos batch - offset:", cousor, "batchSize:", BATCH_SIZE);
-      const memos = await this.memosClient!.getMemos(
+      debugLog("memos-sync: Fetching memos batch - pageToken:", pageToken);
+      const { memos, nextPageToken } = await this.memosClient!.getMemos(
         BATCH_SIZE,
-        cousor,
+        pageToken,
         this.includeArchive!
       );
-      console.log("memos-sync: Retrieved", memos.length, "memos");
+      debugLog("memos-sync: Retrieved", memos.length, "memos");
 
       const filteredMemos = this.memosFilter(memos);
-      console.log("memos-sync: After filtering:", filteredMemos.length, "memos remain");
 
       for (const memo of filteredMemos) {
         totalProcessed++;
-        if (memo.id <= maxMemoId && memo.pinned === false) {
-          console.log("memos-sync: Reached already synced memo ID:", memo.id, "- stopping sync");
+        if (memo.createdTs <= lastTimestamp && !memo.pinned) {
+          debugLog("memos-sync: Reached already synced memo, stopping sync", memo.id);
           end = true;
           break;
         }
-        if (memo.id > newMaxMemoId) {
-          newMaxMemoId = memo.id;
+        if (memo.createdTs > newMaxTimestamp) {
+          newMaxTimestamp = memo.createdTs;
         }
-        const existMemo = await searchExistsMemo(memo.id);
-        if (!existMemo) {
-          console.log("memos-sync: Inserting new memo ID:", memo.id);
-          await this.insertMemo(memo);
+        const alreadySynced =
+          !!syncedIndex[memo.id] || !!(await searchExistsMemoLegacy(memo.id));
+        if (!alreadySynced) {
+          debugLog("memos-sync: Inserting new memo ID:", memo.id);
+          const blockUuid = await this.insertMemo(memo);
+          syncedIndex[memo.id] = blockUuid;
+          indexDirty = true;
           totalInserted++;
           if (
             this.archiveMemoAfterSync &&
             memo.visibility.toLowerCase() === Visibility.Private.toLowerCase()
           ) {
-            console.log("memos-sync: Archiving private memo ID:", memo.id);
+            debugLog("memos-sync: Archiving private memo ID:", memo.id);
             await this.archiveMemo(memo.id);
           }
         } else {
-          console.log("memos-sync: Skipping existing memo ID:", memo.id);
+          debugLog("memos-sync: Skipping existing memo ID:", memo.id);
+          if (!syncedIndex[memo.id]) {
+            syncedIndex[memo.id] = "";
+            indexDirty = true;
+          }
         }
       }
-      if (memos.length < BATCH_SIZE) {
-        console.log("memos-sync: Last batch received, ending sync");
+      if (!nextPageToken || memos.length < BATCH_SIZE) {
         end = true;
         break;
       }
-      cousor += BATCH_SIZE;
+      pageToken = nextPageToken;
     }
-    
-    console.log("memos-sync: Sync complete - processed:", totalProcessed, "inserted:", totalInserted);
-    console.log("memos-sync: Saving new sync ID:", newMaxMemoId);
-    await this.saveSyncId(newMaxMemoId);
+
+    debugLog("memos-sync: Sync complete - processed:", totalProcessed, "inserted:", totalInserted);
+    if (indexDirty) {
+      await saveSyncedMemoIndex(syncedIndex);
+    }
+    await this.saveSyncTimestamp(newMaxTimestamp);
   }
 
   public async autoSyncWhenStartLogseq() {
@@ -189,7 +226,6 @@ class MemosSync {
   }
 
   public parseSetting() {
-    console.log("memos-sync: Parsing settings");
     this.configMigrate();
     try {
       const {
@@ -206,22 +242,7 @@ class MemosSync {
         openId,
         token,
       }: any = logseq.settings;
-      
-      console.log("memos-sync: Settings values:", {
-        mode,
-        customPage,
-        includeArchive,
-        autoSync,
-        backgroundSync,
-        inboxName,
-        archiveMemoAfterSync,
-        tagFilter,
-        flat,
-        host: host ? "***" : undefined,
-        hasOpenId: !!openId,
-        hasToken: !!token
-      });
-      
+
       this.choosingClient();
       this.mode = mode;
       this.autoSync = autoSync;
@@ -236,7 +257,6 @@ class MemosSync {
       this.openId = openId;
       this.token = token;
 
-      console.log("memos-sync: Settings parsed successfully");
       this.backgroundConfigChange();
     } catch (e) {
       console.error("memos-sync: Error parsing settings:", e);
@@ -253,7 +273,7 @@ class MemosSync {
       }
 
       const memoId = getMemoId(block!.properties!);
-      const memoContent = formatContentWhenPush(block!.content);
+      const memoContent = formatContentWhenPush(block!.content || "");
       const memoVisibility = visibility.toUpperCase();
       const memo =
         memoId !== null
@@ -306,22 +326,18 @@ class MemosSync {
     memo: Memo,
     preferredDateFormat: string
   ): Promise<BlockEntity | PageEntity | null> {
-    console.log("memos-sync: generateParentBlock - mode:", this.mode, "memoId:", memo.id);
     const opts = {
       properties: {
         "memo-id": memo.id,
       },
     };
-    
+
     if (this.mode === Mode.CustomPage) {
-      console.log("memos-sync: Using CustomPage mode - page:", this.customPage, "flat:", this.flat);
       if (this.flat) {
         const page = await this.ensurePage(this.customPage!);
-        console.log("memos-sync: Ensured page:", page?.uuid);
         return page;
       }
       const content = renderMemoParentBlockContent(memo, preferredDateFormat, this.mode);
-      console.log("memos-sync: Appending block with content:", content);
       return await logseq.Editor.appendBlockInPage(
         String(this.customPage),
         content,
@@ -332,14 +348,11 @@ class MemosSync {
         new Date(memo.createdTs * 1000),
         preferredDateFormat
       );
-      console.log("memos-sync: Using Journal mode - page:", journalPage, "flat:", this.flat);
       if (this.flat) {
         const page = await this.ensurePage(journalPage, true);
-        console.log("memos-sync: Ensured journal page:", page?.uuid);
         return page;
       }
       const content = renderMemoParentBlockContent(memo, preferredDateFormat, this.mode);
-      console.log("memos-sync: Appending block with content:", content);
       return await logseq.Editor.appendBlockInPage(
         journalPage,
         content,
@@ -350,16 +363,13 @@ class MemosSync {
         new Date(memo.createdTs * 1000),
         preferredDateFormat
       );
-      console.log("memos-sync: Using JournalGrouped mode - page:", journalPage, "inboxName:", this.inboxName);
       await this.ensurePage(journalPage, true);
       const groupedBlock = await this.checkGroupBlock(
         journalPage,
         String(this.inboxName)
       );
-      console.log("memos-sync: Got grouped block:", groupedBlock?.uuid);
       if (this.flat) return groupedBlock;
       const content = renderMemoParentBlockContent(memo, preferredDateFormat, this.mode);
-      console.log("memos-sync: Appending block with content:", content);
       return await logseq.Editor.appendBlockInPage(
         groupedBlock.uuid,
         content,
@@ -375,9 +385,9 @@ class MemosSync {
     page: string,
     inboxName: string
   ): Promise<BlockEntity | PageEntity> {
-    const blocks = await logseq.Editor.getPageBlocksTree(page);
+    const blocks = (await logseq.Editor.getPageBlocksTree(page)) || [];
 
-    const inboxBlock = blocks.find((block: { content: string }) => {
+    const inboxBlock = blocks.find((block) => {
       return block.content === inboxName;
     });
 
@@ -395,12 +405,10 @@ class MemosSync {
     }
   }
 
-  private async insertMemo(memo: Memo) {
-    console.log("memos-sync: insertMemo - Starting insertion for memo ID:", memo.id);
+  private async insertMemo(memo: Memo): Promise<string> {
     const { preferredDateFormat, preferredTodo } =
       await logseq.App.getUserConfigs();
-    console.log("memos-sync: User configs - dateFormat:", preferredDateFormat, "todo:", preferredTodo);
-    
+
     const parentBlock = await this.generateParentBlock(
       memo,
       preferredDateFormat
@@ -409,7 +417,6 @@ class MemosSync {
       console.error("memos-sync: Failed to create parent block for memo ID:", memo.id);
       throw "Not able to create parent Block";
     }
-    console.log("memos-sync: Created parent block with UUID:", parentBlock.uuid);
 
     if (!this.host || (!this.openId && !this.token)) {
       throw new Error("Host or OpenId is undefined");
@@ -418,36 +425,31 @@ class MemosSync {
     const batchBlocks = memoContentGenerate(
       memo,
       this.host,
-      preferredTodo,
+      String(preferredTodo),
       !this.archiveMemoAfterSync &&
         this.flat &&
         memo.visibility.toLowerCase() === Visibility.Private.toLowerCase()
     );
-    
-    console.log("memos-sync: Generated batch blocks:", JSON.stringify(batchBlocks, null, 2));
-    console.log("memos-sync: Inserting", batchBlocks.length, "blocks into parent UUID:", parentBlock.uuid);
-    
+
     try {
-      const result = await logseq.Editor.insertBatchBlock(
+      await logseq.Editor.insertBatchBlock(
         parentBlock.uuid,
         batchBlocks,
         { sibling: false }
       );
-      console.log("memos-sync: insertBatchBlock result:", result);
-      console.log("memos-sync: Successfully inserted memo ID:", memo.id);
     } catch (error) {
       console.error("memos-sync: Failed to insert batch blocks:", error);
       throw error;
     }
+    return parentBlock.uuid;
   }
 
   private async updateMemos(
-    memoId: number,
+    memoId: string,
     content: string,
     visibility: string
   ): Promise<Memo> {
     const payload = {
-      id: `${memoId}`,
       content: `${formatContentWhenPush(content)}`,
       visibility: `${visibility}`,
     };
@@ -461,7 +463,7 @@ class MemosSync {
     );
   }
 
-  private async archiveMemo(memoId: number): Promise<Memo> {
+  private async archiveMemo(memoId: string): Promise<Memo> {
     const payload = {
       rowStatus: "ARCHIVED",
     };
