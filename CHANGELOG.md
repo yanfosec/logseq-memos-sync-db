@@ -1,3 +1,5 @@
+# [2.0.0](https://github.com/yanfosec/logseq-memos-sync-db/compare/v1.10.1...v2.0.0) (2026-07-25)
+
 ## [1.3.1](https://github.com/EINDEX/logseq-memos-sync/compare/v1.3.0...v1.3.1) (2023-03-05)
 
 
