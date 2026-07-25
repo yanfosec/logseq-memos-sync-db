@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Logseq plugin that syncs notes between Logseq and Memos (a self-hosted memo hub). The project is currently archived as the author no longer uses Memos, but the codebase remains functional.
+This is a Logseq plugin that syncs notes between Logseq and Memos (a self-hosted memo hub). It's a DB-graph-compatible continuation of [EINDEX's logseq-memos-sync](https://github.com/EINDEX/logseq-memos-sync) (archived by its original author), rewritten to target Logseq 2.0.1+ and the current Memos API.
 
 ## Development Commands
 

@@ -1,7 +1,14 @@
 {
-  "name": "logseq-memos-sync",
-  "version": "1.3.1",
+  "name": "logseq-memos-sync-db",
+  "version": "2.0.0",
+  "description": "Sync memos between Memos and Logseq 2.0.1+ (DB-graph) — a DB-graph-compatible continuation of logseq-memos-sync",
   "main": "dist/index.html",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yanfosec/logseq-memos-sync-db.git"
+  },
+  "homepage": "https://github.com/yanfosec/logseq-memos-sync-db",
+  "bugs": "https://github.com/yanfosec/logseq-memos-sync-db/issues",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -9,7 +16,7 @@
     "test": "jest",
     "prepare": "husky install"
   },
-  "license": "MIT",
+  "license": "GPL-3.0",
   "dependencies": {
     "@logseq/libs": "^0.3.4",
     "axios": "^1.18.1",
@@ -38,7 +45,7 @@
     "vite-plugin-logseq": "1.1.2"
   },
   "logseq": {
-    "id": "_eindex-logseq-memos-sync",
+    "id": "_yanfosec-logseq-memos-sync-db",
     "icon": "./logo.webp"
   },
   "packageManager": "pnpm@10.12.2"

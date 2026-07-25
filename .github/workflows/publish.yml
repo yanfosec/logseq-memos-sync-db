@@ -9,14 +9,21 @@ on:
       - "main"
     tags:
       - "v*.*.*"
-  pull_request_target:
+  pull_request:
     branches:
       - "main"
 
   workflow_dispatch:
 
 env:
-  PLUGIN_NAME: logseq-memos-sync
+  PLUGIN_NAME: logseq-memos-sync-db
+
+# semantic-release pushes the version tag and creates the GitHub Release,
+# so the default read-only GITHUB_TOKEN is not sufficient.
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
