@@ -1,5 +1,56 @@
 # [2.0.0](https://github.com/yanfosec/logseq-memos-sync-db/compare/v1.10.1...v2.0.0) (2026-07-25)
 
+First release of `logseq-memos-sync-db`, a continuation of
+[EINDEX/logseq-memos-sync](https://github.com/EINDEX/logseq-memos-sync)
+targeting Logseq 2.0.1+ database graphs. See
+[docs/UPGRADE_PLAN.md](docs/UPGRADE_PLAN.md) for the full audit and
+live-test writeup.
+
+### ⚠ BREAKING CHANGES
+
+* **Requires Logseq 2.0.1 or later** (database graphs). This release does
+  not work on Logseq OG / file graphs — stay on the original plugin for
+  those.
+* **Memos API v0 support removed.** The v1 client is the only client; v0
+  has been EOL for a long time and was already dead code.
+* **New plugin id** (`_yanfosec-logseq-memos-sync-db`). This installs
+  alongside the original plugin rather than upgrading it in place.
+
+### Features
+
+* Rewritten against `@logseq/libs` 0.3.4, the DB-graph SDK.
+* All HTTP now goes through `logseq.Net`, which proxies through the Logseq
+  host process. Logseq 2.0.1 runs plugins in a sandboxed `lsp://` iframe
+  subject to browser CORS, which blocked every request to Memos servers
+  that don't send CORS headers.
+* Duplicate detection now uses a `FileStorage`-backed index rather than
+  relying solely on a graph property query.
+* Client updated to the current Memos API: `updateMask` on PATCH, `state`
+  instead of `row_status`, `attachments` instead of `resources`, and
+  string memo ids instead of a hashed numeric shim.
+
+### Bug Fixes
+
+* Plugin no longer crashes on load when `sendVisibility` is unset, which
+  was silently aborting slash-command registration and auto-sync.
+* Dedup index now actually persists (`FileStorage.setItem` requires a
+  string; it was being handed an object and failing silently).
+* "Archive memo after sync" no longer defaults to on. It was a truthy
+  string `"false"`, so a fresh install would archive private memos on the
+  first sync.
+* "Full Sync" now actually resets the sync cursor instead of silently
+  reusing the previous timestamp.
+* Server URLs entered without a scheme no longer fail with an opaque
+  connection error.
+
+### Known Issues
+
+* **"Full Sync" can duplicate memos that were synced by the 1.x plugin.**
+  Those memos aren't in this version's index, and the fallback
+  `logseq.DB.q` property lookup does not reliably match blocks on DB
+  graphs. Memos synced by this version are tracked correctly. See
+  [docs/UPGRADE_PLAN.md](docs/UPGRADE_PLAN.md) §9.
+
 ## [1.3.1](https://github.com/EINDEX/logseq-memos-sync/compare/v1.3.0...v1.3.1) (2023-03-05)
 
 

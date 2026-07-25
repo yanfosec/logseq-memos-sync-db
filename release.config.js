@@ -9,7 +9,16 @@ module.exports = {
         releaseRules: [{ type: "chore", release: "patch" }],
       },
     ],
-    "@semantic-release/release-notes-generator",
+    // The preset must match commit-analyzer's. Without it this defaults to
+    // the angular preset, whose header pattern does not accept the "!"
+    // breaking-change marker — "feat!: ..." then fails to parse and is
+    // dropped from the notes entirely, producing an empty release body.
+    [
+      "@semantic-release/release-notes-generator",
+      {
+        preset: "conventionalcommits",
+      },
+    ],
     "@semantic-release/changelog",
     // Must run before the zip below: Logseq reads the plugin version from the
     // packaged package.json, so it has to be bumped before the zip is built.
