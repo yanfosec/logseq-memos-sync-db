@@ -1,3 +1,10 @@
+## [2.0.1](https://github.com/yanfosec/logseq-memos-sync-db/compare/v2.0.0...v2.0.1) (2026-07-31)
+
+
+### Bug Fixes
+
+* **push:** stamp pushed memos with their Logseq date ([#1](https://github.com/yanfosec/logseq-memos-sync-db/issues/1)) ([0fd27c1](https://github.com/yanfosec/logseq-memos-sync-db/commit/0fd27c1f2533c2efd04d231a21f8f81895682df9))
+
 # [2.0.0](https://github.com/yanfosec/logseq-memos-sync-db/compare/v1.10.1...v2.0.0) (2026-07-25)
 
 First release of `logseq-memos-sync-db`, a continuation of
