@@ -5,9 +5,11 @@ import { BATCH_SIZE } from "./constants";
 import MemosGeneralClient, { MemosClient } from "./memos/client";
 import { Memo } from "./memos/type";
 import {
+  blockTreeToMemoContent,
   formatContentWhenPush,
   memoContentGenerate,
   renderMemoParentBlockContent,
+  resolveJournalCreateTime,
 } from "./memos/utils";
 import { Mode, Visibility } from "./settings";
 import {
@@ -272,13 +274,36 @@ class MemosSync {
         return;
       }
 
-      const memoId = getMemoId(block!.properties!);
-      const memoContent = formatContentWhenPush(block!.content || "");
+      // Re-fetch the block with its full descendant tree so "/memos"
+      // replicates all nested bullets, not just the top line.
+      const fullBlock =
+        (await logseq.Editor.getBlock(block!.uuid, {
+          includeChildren: true,
+        })) || block!;
+
+      const memoId = getMemoId(fullBlock.properties || block!.properties || {});
+      const memoContent = blockTreeToMemoContent(fullBlock);
       const memoVisibility = visibility.toUpperCase();
+
+      // Stamp the new memo with the block's Logseq date (the journal day it
+      // lives on, or its own createdAt) instead of letting Memos default to
+      // the current server time.
+      const page = fullBlock.page?.id
+        ? await logseq.Editor.getPage(fullBlock.page.id)
+        : null;
+      const createTimeMs = resolveJournalCreateTime(
+        page?.journalDay,
+        fullBlock.createdAt
+      );
+      const createTime =
+        createTimeMs !== undefined
+          ? new Date(createTimeMs).toISOString()
+          : undefined;
+
       const memo =
         memoId !== null
           ? await this.updateMemos(memoId, memoContent, memoVisibility)
-          : await this.postMemo(memoContent, memoVisibility);
+          : await this.postMemo(memoContent, memoVisibility, createTime);
 
       await logseq.Editor.upsertBlockProperty(block!.uuid, "memo-id", memo.id);
       await logseq.Editor.upsertBlockProperty(
@@ -286,6 +311,21 @@ class MemosSync {
         "memo-visibility",
         memo.visibility
       );
+
+      // Record the pushed memo in the authoritative dedup index so the next
+      // pull sync recognises it as already-present and does not re-insert it
+      // as a new block (the Logseq -> Memos -> Logseq round-trip duplicate).
+      try {
+        const syncedIndex = await loadSyncedMemoIndex();
+        syncedIndex[memo.id] = block!.uuid;
+        await saveSyncedMemoIndex(syncedIndex);
+      } catch (indexError) {
+        debugLog(
+          "memos-sync: failed to record pushed memo in sync index:",
+          indexError
+        );
+      }
+
       if (memoId !== null) {
         await logseq.UI.showMsg("Update memo success");
       } else {
@@ -456,10 +496,15 @@ class MemosSync {
     return await this.memosClient!.updateMemo(memoId, payload);
   }
 
-  private async postMemo(content: string, visibility: string): Promise<Memo> {
+  private async postMemo(
+    content: string,
+    visibility: string,
+    createTime?: string
+  ): Promise<Memo> {
     return await this.memosClient!.createMemo(
       formatContentWhenPush(content),
-      visibility
+      visibility,
+      createTime
     );
   }
 

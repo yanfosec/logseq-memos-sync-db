@@ -13,7 +13,11 @@ export interface MemosClient {
     includeArchive: boolean
   ): Promise<MemoPage>;
   updateMemo(memoId: string, payload: Record<string, any>): Promise<Memo>;
-  createMemo(content: string, visibility: string): Promise<Memo>;
+  createMemo(
+    content: string,
+    visibility: string,
+    createTime?: string
+  ): Promise<Memo>;
 }
 
 export default class MemosGeneralClient {
