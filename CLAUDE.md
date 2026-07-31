@@ -29,11 +29,11 @@ pnpm test
 ### Plugin Structure
 - **Entry Point**: `src/main.tsx` - Registers commands, sets up event handlers, and initializes the plugin
 - **Core Logic**: `src/memos.ts` - Handles sync operations between Logseq and Memos
-- **API Clients**: `src/memos/impls/` - Supports both Memos API v0 and v1 with abstracted interfaces
+- **API Client**: `src/memos/impls/clientV1.ts` - Talks to the Memos v1 REST API behind the `MemosClient` interface (`src/memos/client.ts`)
 - **Settings**: `src/settings.ts` - Defines plugin configuration schema using Logseq's settings system
 
 ### Key Patterns
-1. **API Version Abstraction**: The plugin uses a factory pattern to create the appropriate API client based on the Memos server version
+1. **API Client Abstraction**: `MemosGeneralClient` (`src/memos/client.ts`) wraps a single `MemosClientV1` behind the `MemosClient` interface, keeping the sync logic in `src/memos.ts` decoupled from the concrete REST calls
 2. **Sync Modes**: 
    - Journal: Syncs to daily journal pages
    - Custom Page: Syncs to a user-defined page
@@ -41,7 +41,7 @@ pnpm test
 3. **Event-Driven**: Uses Logseq's event system for settings changes and user commands
 
 ### Important Files
-- `src/memos/client.ts`: Abstract base class for Memos API clients
+- `src/memos/client.ts`: `MemosClient` interface and the `MemosGeneralClient` wrapper
 - `src/memos/type.ts`: TypeScript definitions for Memos data structures
 - `src/utils.ts` & `src/memos/utils.ts`: Utility functions for content generation and formatting
 
@@ -61,14 +61,14 @@ The plugin uses Vite with a specialized Logseq plugin (`vite-plugin-logseq`) tha
 Uses semantic-release with GitHub Actions for automated versioning and releases. The release creates a zip file containing:
 - `dist/` folder with built assets
 - `readme.md`
-- `logo.svg`
+- `logo.webp`
 - `LICENSE`
 - `package.json`
 
 ## Important Considerations
 
-1. **Memos API Compatibility**: The plugin supports both v0 and v1 of the Memos API. When making changes, ensure compatibility with both versions.
-2. **Logseq API**: Uses `@logseq/libs` v0.0.10. Check Logseq documentation for API usage.
+1. **Memos API**: Targets the Memos **v1** REST API (`/api/v1/...`). The legacy v0/openId client was removed in the 2.0 rewrite; `clientV1.ts` transforms v1 responses (e.g. `name` `memos/123` → numeric id, `createTime` → `createdTs`) into the shape the sync code expects.
+2. **Logseq API**: Uses `@logseq/libs` `^0.3.4`, targeting Logseq 2.0.1+ DB graphs. Check Logseq documentation for API usage.
 3. **Date Handling**: Uses date-fns for date manipulation. All dates should be handled consistently.
 4. **Error Handling**: The plugin includes user-friendly error messages. Maintain clear error reporting for sync failures.
 5. **Settings Validation**: Settings changes trigger immediate validation and re-initialization of the Memos client.

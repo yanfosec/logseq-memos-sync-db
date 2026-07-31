@@ -18,7 +18,8 @@ for the full audit and live-test writeup of what changed and why.
 
 - Sync memos to Logseq via the Memos API
 - Auto Sync memos when Logseq starts
-- Send a Logseq block to Memos
+- Send a Logseq block to Memos (the memo keeps the block's Logseq date —
+  the journal day it lives on — instead of "now")
 - Sync memos filtered by tag
 - Includes attachments (rendered as links)
 

@@ -93,7 +93,16 @@ export const getMemoId = (properties: Record<string, any>): string | null => {
   if (!properties) {
     return null;
   }
-  const memoId = properties["memoId"] || properties["memoid"];
+  // post() writes the property as "memo-id" via upsertBlockProperty, but
+  // Logseq surfaces block properties under different key spellings across
+  // file graphs (camelCased "memoId") and DB graphs ("memo-id"). Check every
+  // variant so re-pushing an already-synced block updates the existing memo
+  // instead of creating a duplicate one on the server.
+  const memoId =
+    properties["memoId"] ||
+    properties["memoid"] ||
+    properties["memo-id"] ||
+    properties["memo_id"];
   if (memoId) {
     return String(memoId);
   }

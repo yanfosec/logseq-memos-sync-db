@@ -5,3 +5,8 @@ dist-ssr
 *.local
 memos-sync-test-graph/
 .env
+
+# Test / tooling caches
+coverage/
+jest_dx/
+node-compile-cache/

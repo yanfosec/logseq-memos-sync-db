@@ -185,11 +185,21 @@ export default class MemosClientV1 implements MemosClient {
     }
   }
 
-  public async createMemo(content: string, visibility: string): Promise<Memo> {
-    const payload = {
+  public async createMemo(
+    content: string,
+    visibility: string,
+    createTime?: string
+  ): Promise<Memo> {
+    const payload: Record<string, any> = {
       content,
       visibility: visibility.toUpperCase(),
     };
+    // The Memo.create_time field is OPTIONAL on create; when omitted the
+    // server stamps the current time. Passing the block's Logseq date makes
+    // Memos record the note under the day it belongs to.
+    if (createTime !== undefined) {
+      payload.createTime = createTime;
+    }
     const url = new URL(`${this.host}/api/v1/memos`);
     try {
       const response = await this.request<any>(url, "POST", payload);
