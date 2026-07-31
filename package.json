@@ -1,6 +1,6 @@
 {
   "name": "logseq-memos-sync-db",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Sync memos between Memos and Logseq 2.0.1+ (DB-graph) — a DB-graph-compatible continuation of logseq-memos-sync",
   "main": "dist/index.html",
   "repository": {
