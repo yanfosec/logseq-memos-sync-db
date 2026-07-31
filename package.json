@@ -46,6 +46,7 @@
   },
   "logseq": {
     "id": "_yanfosec-logseq-memos-sync-db",
+    "title": "Memos Sync (DB)",
     "icon": "./logo.webp"
   },
   "packageManager": "pnpm@10.12.2"
