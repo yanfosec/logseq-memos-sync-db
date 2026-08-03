@@ -60,6 +60,15 @@ export default class MemosClientV1 implements MemosClient {
       return resp.body;
     } catch (error: any) {
       console.error("memos-sync: V1 API request failed:", error);
+      // `responseType: "json"` means the JSON parse happens in Logseq's host
+      // process, so an HTML body (SPA index.html, login page, proxy error)
+      // surfaces here only as a parse error — we never see the body itself.
+      // Detect that signature and replace the cryptic "Unexpected token '<'"
+      // with actionable guidance about the host URL.
+      const message = String(error?.message ?? error ?? "");
+      if (/Unexpected token '<'|<!doctype|is not valid JSON/i.test(message)) {
+        throw `Server returned HTML, not JSON. Check that the Open API URL (${this.host}) points at your Memos server's API and not the web app or a login/proxy page.`;
+      }
       if (error?.response) {
         throw error.response.body?.message || error.message;
       }
