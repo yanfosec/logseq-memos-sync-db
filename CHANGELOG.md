@@ -1,3 +1,10 @@
+## [2.0.5](https://github.com/yanfosec/logseq-memos-sync-db/compare/v2.0.4...v2.0.5) (2026-08-03)
+
+
+### Bug Fixes
+
+* warn against trailing slash in host setting description ([bdf5abb](https://github.com/yanfosec/logseq-memos-sync-db/commit/bdf5abbf71ec6575453a1d0fc91dd1c2ab7533d3)), closes [#7](https://github.com/yanfosec/logseq-memos-sync-db/issues/7)
+
 ## [2.0.4](https://github.com/yanfosec/logseq-memos-sync-db/compare/v2.0.3...v2.0.4) (2026-08-03)
 
 
