@@ -44,3 +44,36 @@ describe("MemosClientV1 host normalization", () => {
     expect(requestedUrl().startsWith("https://memos.example.com/api/v1/memos")).toBe(true);
   });
 });
+
+describe("MemosClientV1 HTML-response error", () => {
+  let requestMock: jest.Mock<(req: { url: string }) => Promise<any>>;
+
+  beforeEach(() => {
+    requestMock = jest.fn<(req: { url: string }) => Promise<any>>();
+    (globalThis as any).logseq = {
+      Net: { request: requestMock },
+      settings: { debug: false },
+    };
+  });
+
+  it("turns an HTML-parse failure into actionable guidance about the URL", async () => {
+    // The signature Logseq's host process raises when the API returns HTML.
+    requestMock.mockRejectedValue(
+      new Error(
+        `Error invoking remote method 'main': SyntaxError: Unexpected token '<', "<!doctype "... is not valid JSON`
+      )
+    );
+    const client = new MemosClientV1("https://memos.example.com", "token");
+    await expect(client.getMemos(10, null, false)).rejects.toThrow(
+      /Server returned HTML, not JSON/
+    );
+  });
+
+  it("passes through non-HTML errors unchanged", async () => {
+    requestMock.mockRejectedValue(new Error("Cannot connect to memos server"));
+    const client = new MemosClientV1("https://memos.example.com", "token");
+    await expect(client.getMemos(10, null, false)).rejects.toThrow(
+      /Cannot connect to memos server/
+    );
+  });
+});
