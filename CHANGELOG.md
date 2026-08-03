@@ -1,3 +1,10 @@
+## [2.0.4](https://github.com/yanfosec/logseq-memos-sync-db/compare/v2.0.3...v2.0.4) (2026-08-03)
+
+
+### Bug Fixes
+
+* give a clear error when the Memos API returns HTML instead of JSON ([#6](https://github.com/yanfosec/logseq-memos-sync-db/issues/6)) ([7f78bc0](https://github.com/yanfosec/logseq-memos-sync-db/commit/7f78bc0188a34353de2945ebecafea614bb8d9d0))
+
 ## [2.0.3](https://github.com/yanfosec/logseq-memos-sync-db/compare/v2.0.2...v2.0.3) (2026-08-03)
 
 
