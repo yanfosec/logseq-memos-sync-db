@@ -14,8 +14,13 @@ export default class MemosClientV1 implements MemosClient {
   private token: string;
 
   constructor(host: string, token: string, openId?: string) {
+    // Normalize the user-entered host: trim stray whitespace and drop any
+    // trailing slash(es). A trailing slash turns `${host}/api/v1/memos` into a
+    // `//api/v1/...` double-slash path, which reverse proxies serve the web
+    // app's index.html for — the sync then fails parsing HTML as JSON.
+    const normalized = host.trim().replace(/\/+$/, "");
     // `new URL()` requires a scheme; users commonly enter a bare host:port.
-    this.host = /^https?:\/\//.test(host) ? host : `https://${host}`;
+    this.host = /^https?:\/\//.test(normalized) ? normalized : `https://${normalized}`;
     this.token = token;
     this.openId = openId;
   }
