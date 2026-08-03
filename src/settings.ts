@@ -33,7 +33,7 @@ export default function settingSchema() {
       key: "host",
       type: "string",
       title: "Open API",
-      description: "Full URL including scheme, example: https://memos.com:8080",
+      description: "Full URL including scheme, no trailing slash. Example: https://memos.com:8080",
       default: "",
     },
     {
