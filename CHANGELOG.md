@@ -1,3 +1,10 @@
+## [2.0.3](https://github.com/yanfosec/logseq-memos-sync-db/compare/v2.0.2...v2.0.3) (2026-08-03)
+
+
+### Bug Fixes
+
+* strip trailing slash from Memos host to prevent HTML-instead-of-JSON sync failure ([#5](https://github.com/yanfosec/logseq-memos-sync-db/issues/5)) ([328d101](https://github.com/yanfosec/logseq-memos-sync-db/commit/328d101f81f7d146bad323ee8f2283edfb172fb9))
+
 ## [2.0.2](https://github.com/yanfosec/logseq-memos-sync-db/compare/v2.0.1...v2.0.2) (2026-07-31)
 
 ## [2.0.1](https://github.com/yanfosec/logseq-memos-sync-db/compare/v2.0.0...v2.0.1) (2026-07-31)
